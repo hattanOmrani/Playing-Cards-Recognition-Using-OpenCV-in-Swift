@@ -13,8 +13,7 @@ This card recognition process works well in a lot of cases but has some limitati
 - It is programed to detect the standard type of playing cards. 
 - It will not be able to recognize a card that does not show suit and rank in their normal place (top left corner)
 
-
-# To communicate with OpenCv from swift 
+#To communicate with OpenCv from swift 
 Three files are needed
 OpenCVWrapper.h
   the interface to the Objective-C code.
