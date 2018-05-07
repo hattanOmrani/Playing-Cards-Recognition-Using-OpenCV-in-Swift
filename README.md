@@ -23,4 +23,5 @@ Three files are needed
   EX: implementation for: + (NSString *)imagePreprocessing:(UIImage *)source{......}
 - Bridging header 
   The bridging header tells Swift code about the Objective-C code that is available. 
-Then: from Swift call: OpenCVWrapper.imagePreprocessing(image);
+
+#Then: from Swift call: OpenCVWrapper.imagePreprocessing(image);
