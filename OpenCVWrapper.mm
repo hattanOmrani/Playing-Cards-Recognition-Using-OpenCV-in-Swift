@@ -1,6 +1,5 @@
 //
 //  OpenCVWrapper.m
-//  tryOpenCV
 //
 //  Created by Hattan Omrani on 1/24/18.
 //  Copyright © 2018 Hattan Omrani. All rights reserved.
@@ -10,8 +9,6 @@
 #import "OpenCVWrapper.h"
 #import <opencv2/videoio/cap_ios.h>
 #import <opencv2/imgcodecs/ios.h>
-
-
 
 using namespace std;
 using namespace cv;
@@ -25,7 +22,7 @@ using namespace cv;
     
     // **************** Image  preprocessing ********************* //
     Mat preprocessingImage;
-    //TO: gray
+    // To gray
     cv::cvtColor(matSource, preprocessingImage, CV_BGR2GRAY);
     // BLUR
     GaussianBlur(preprocessingImage,preprocessingImage,cv::Size(21,21),0);
@@ -36,71 +33,66 @@ using namespace cv;
     // **************** Cards Extraction: By finding the contours ********************** //
     vector<vector<cv::Point> > contours;
     vector<Vec4i> hierarchy;
-    //findContours: a  contour is a vector of points that represent a shape or something.
     findContours( preprocessingImage, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE,cv::Point(0,0));
-    //preprocessingImage.release();
 
     // Look for and keep index of cards cantors
-    double CARD_MAX_AREA = 10000000; // 9,000,000
-    double CARD_MIN_AREA = 40000;  //50000
+    double CARD_MAX_AREA = 10000000; 
+    double CARD_MIN_AREA = 40000;  
     vector<int> cards_index;
     for( int i = 0; i< contours.size(); i++ )
     {
-
-        // GET: contour area
+        // Get contour area
         double area0 = contourArea(contours[i]);
-        // CHECK: if within required area size
+        // Check: if within required area size
         if(area0 > CARD_MIN_AREA && area0 < CARD_MAX_AREA){
-            // CHECK: if does not have parent
+            // Check: if does not have parent
             if (hierarchy[i][3] == -1){
-                // CHECK: if it has foour corners.
+                // Check: if it has foour corners.
                 vector<cv::Point2f> approxArray_1;
                 // Get area and use it to approximate corner points of the contour
                 double peri = arcLength(contours[i],true);
                 approxPolyDP(contours[i],approxArray_1,0.05*peri,true);
-                // Ignore contours with != 4 corners.
+                // Ignore contours without 4 corners.
                 if(approxArray_1.size() == 4){
                     cards_index.push_back(i);
                 }
             }
         }
     }
-    //cout << cards_index.size() << " <<#Cards in this pic\n";
     if(cards_index.size() == 0){
         return @"NA";
     }
 
-
-    NSString *result = @"";
-    //NSString *split = @"/";
     // loop through cards container and identfy each one of them
+    NSString *result = @"";
     for (int i=0; i< cards_index.size(); i++){
         NSString *tempString = processACard(matSource,contours, cards_index[i]);
+        // Appened the result
         result = [result stringByAppendingString:tempString];
-        //result = [result stringByAppendingString: split];
     }
     return result;
-}// end of imagePreprocessing Main Func
-
+} // End of: imagePreprocessing. The Main Function
 
 ///////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////    Mark:- Helper Functions        ///////////////////////////
 
-    //  Func to Process each Card
+    //  A Function to Process each card contour 
     NSString* processACard(Mat sourceImage,vector<vector<cv::Point>> contours, int index){
         // **************** Card transofrmation ********************** //
-        // do Transformation using MinAreaRect()
-        cv::RotatedRect rotated_Rect = minAreaRect(contours[index]); // use less than 13
+        // do Transformation using Min area rectangle
+        cv::RotatedRect rotated_Rect = minAreaRect(contours[index]); 
         Point2f vertices[4];
+        // get rect points
         rotated_Rect.points(vertices);
         
+        // moving the points from the arreay to a vector
         vector<cv::Point2f> verticesVec;
         verticesVec.push_back(vertices[0]);
         verticesVec.push_back(vertices[1]);
         verticesVec.push_back(vertices[2]);
         verticesVec.push_back(vertices[3]);
         
-        // use boundingRect to get information about the contour and determain oriantation.
+        // use boundingRect to get information about the contour and determine oriantation.
         cv::Rect myRect = boundingRect(contours[index]);
         
         // Creat Destination vector basid on card oriantation.
@@ -191,12 +183,14 @@ using namespace cv;
         myCorner.copyTo(the_corner);
         transformed_Card.release();
         
+        // look for Rank and Suit
         Mat rankANDSuit = lookForSuitandRank(the_corner);
         the_corner.release();
         if(rankANDSuit.empty()){
-            //cout << "<< Something went wrong \n";
             return @"NA";
         }
+        
+        // look for SplitLine
         int splitLine = findSplitLineForRankSuit(rankANDSuit);
         
         cv::Mat myRank;
@@ -212,15 +206,16 @@ using namespace cv;
             tempSuit.copyTo(mySuit);
             resize(mySuit, mySuit, cv::Size(70,125));
         }else{
-            //cout << "<< splitline problem \n";
             return @"NA" ;
         }
+        
+        // Get bounding Rectangle
         myRank = getBoundingRec(myRank);
         mySuit = getBoundingRec(mySuit);
         
         
         // **************** compare ********************** //
-        // compar; 1=rank, else = suit
+        // compar: 1=rank, else = suit
         NSString *rank = comparetoTestingImages(myRank, 1);
         if ([rank isEqualToString:@"NA"]){
             return @"NA";
@@ -230,7 +225,6 @@ using namespace cv;
         NSString *rankSuit = [rank stringByAppendingString:comma];
         rankSuit = [rankSuit stringByAppendingString:suit];
         return rankSuit;
-        
     }
 
     Mat getBoundingRec(Mat img){
@@ -277,7 +271,7 @@ using namespace cv;
         int startCal = 0;
         int countWCals = 0;
         for (int col = 0 ; col < img.cols ; col++){
-            // stop if when you find first Cal
+            // stop when you find first Cal
             if(startCal != 0){
                 break;
             }
@@ -304,7 +298,7 @@ using namespace cv;
                         previous_color = 255;
                     }
                 }
-            }// Row For Loop END
+            }
             
             // CHECK: count white cols, if no black pix and a lot of white pix
             if(bPix == 0 && wPix > 80){
@@ -320,17 +314,16 @@ using namespace cv;
             }
         }// end of for Col
         
-        //cout<< startCal << "<<< Start Cal \n";
         if(startCal == 0 ){
             Mat empty;
             return empty;
         }
         
         
-        ///////////// Look for v end point ////////////
+        ///////////// Look for vertical end point ////////////
         int endCal = 0;
         for (int col = startCal+3 ; col < img.cols ; col++){
-            // stop if when you find end Cal
+            // stop when you find end Cal
             if(endCal != 0){
                 break;
             }
@@ -353,26 +346,21 @@ using namespace cv;
                         bPix++;
                         if(previous_color == 0){
                             bSeqPix++;
-                        }
-                        
+                        }   
                     }
-                    
                     if(pixValue == 255 && bPix !=0){
                         previous_color = 255;
                     }
-                    
                 }
             }// end of For Loop for Row.
             double blackPer = 0.0;
             blackPer = (bPix/150)*100;
             
-            // Check If black pix 0,1 || If it end with black pix
-            //This Good with all cards for: H:TR+TL, V:TL+TR , D:TR+TL
+            // Check If black pix 0,1 
             if(bPix < 2  ){
                 endCal = col;
                 break;
             }
-            
             if(blackPer > 49 && blackPer > 2  ){
                 if(pixValue == 0){
                     endCal = col;
@@ -380,15 +368,12 @@ using namespace cv;
                 }
                 
             }
-        }// end of for Col
+        }
         
-        //cout<< endCal << "<<< endCal \n";
         if(endCal == 0 ){
             Mat empty;
             return empty;
         }
-        
-        
         
         ///////////// Look for H start point //////////////
         int startRow = 0;
@@ -399,14 +384,10 @@ using namespace cv;
         int changes_counter =0;
         int bRowsCounter = 0;
         int wRowsCounter = 0;
-        
-    //    int colSearshDest = endCal-startCal;
-    //    int endSearshCol = endCal - ceil(colSearshDest/4);
+       
         for (int row = 0 ; row < img.rows ; row++){
             int rowColor = 255;
-            int bPixSeq =0;
-            
-            //<= endSearshCol
+            int bPixSeq =0;            
             for(int col = startCal ; col <= endCal; col++){
                 int pixValue = (int)img.at<uchar>(row, col);
                 if(pixValue == 0){
@@ -417,15 +398,12 @@ using namespace cv;
                     break;
                 }
                 
-            }// end Col Loop
+            }
             
             if(rowColor == 255){
                 whiteRowsCounter++;
-            }
-            
-            if(whiteRowsCounter > 5){
-                
-                
+            }            
+            if(whiteRowsCounter > 5){   
                 if(rowColor == 0 && rowColor != previousColor ){
                     bRowsCounter++;
                     if(bRowsCounter > 1){
@@ -451,15 +429,11 @@ using namespace cv;
                         }
                         bRowsCounter = 0;
                         wRowsCounter =0;
-                    }
-                    
-                    
+                    }  
                 }
             }
         }
-        
-        //cout<< startRow << "startRow\n";
-        //cout<< endRow << "endRow \n";
+       
         if(startRow == 0 || endRow == 0){
             Mat empty;
             return empty;
@@ -484,10 +458,8 @@ using namespace cv;
 
     int findSplitLineForRankSuit(Mat img){
         int splitLine = 0;
-        
         int wRowsNum = 0;
         for (int row = 0 ; row < img.rows ; row++){
-            
             int rowColor = 0;
             int wPixSeq = 0;
             for(int col = 0 ; col < img.cols; col++){
@@ -516,9 +488,6 @@ using namespace cv;
         return splitLine;
     }// Mark:- End Of: findSplitLineForRankSuit()
 
-
-
-    // start:- comparetoTestingImages()
     NSString* comparetoTestingImages(Mat query_mat, int option){
         vector<cv::Mat> testMats;
         testMats = loadTestingImges(option);
@@ -537,7 +506,7 @@ using namespace cv;
         cout<< lowestP << " :the confidnace of " << option << "\n";
         
         if(option == 1){
-            if(index_ofLowestP != -1 && lowestP <= 2000){ //<= 2500
+            if(index_ofLowestP != -1 && lowestP <= 2000){ 
                     switch (index_ofLowestP) {
                         case 0: return @"A";
                             break;
@@ -575,57 +544,13 @@ using namespace cv;
                 }
             }
         }
-        
-       
-        
-        
-        
-    //    if(index_ofLowestP != -1 && lowestP <= 2000){ //<= 2500
-    //        if(option == 1){
-    //            switch (index_ofLowestP) {
-    //                case 0: return @"A";
-    //                    break;
-    //                case 1: return @"K";
-    //                    break;
-    //                case 2: return @"Q";
-    //                    break;
-    //                case 3: return @"J";
-    //                    break;
-    //                case 4: return @"10";
-    //                    break;
-    //                case 5: return @"9";
-    //                    break;
-    //                case 6: return @"8";
-    //                    break;
-    //                case 7: return @"7";
-    //                    break;
-    //                default: return @"NA";
-    //                    break;
-    //            }
-    //        }else{
-    //            switch (index_ofLowestP) {
-    //                case 0: return @"heart";
-    //                    break;
-    //                case 1: return @"diamond";
-    //                    break;
-    //                case 2: return @"spade";
-    //                    break;
-    //                case 3: return @"club";
-    //                    break;
-    //                default: return @"NA";
-    //                    break;
-    //            }
-    //        }
-    //    }
         return @"NA";
     } // end:- comparetoTestingImages()
 
-    // start:- load testing imges()
     vector<Mat> loadTestingImges(int option){
         // 1= load ranks, else = load suits
         vector< NSString*> imNames;
         if(option == 1){
-            //cout<< "<< test rank\n";
             imNames.push_back(@"A");
             imNames.push_back(@"K");
             imNames.push_back(@"Q");
@@ -635,7 +560,6 @@ using namespace cv;
             imNames.push_back(@"8");
             imNames.push_back(@"7");
         }else{
-            //cout<< "<< test suit\n";
             imNames.push_back(@"heart");
             imNames.push_back(@"diamond");
             imNames.push_back(@"spade");
@@ -689,8 +613,6 @@ using namespace cv;
         return matArray;
     }// end:- load testing imges()
 
-
-    // start:- calcDistanceBetweenTwoPoints()
     double calcDistanceBetweenTwoPoints(cv::Point2f a,cv::Point2f b){
         double d = sqrt(pow(a.x-b.x,2)+pow(a.y-b.y,2));
         return d;
@@ -698,7 +620,3 @@ using namespace cv;
 
 @end
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
